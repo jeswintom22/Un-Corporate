@@ -1,0 +1,26 @@
+{
+  "name": "un-corporate",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "An AI-powered translator that turns 50 pages of corporate legalese and sketchy terms of service into absolute real talk.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeswintom22/Un-Corporate.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jeswintom22/Un-Corporate/issues"
+  },
+  "homepage": "https://github.com/jeswintom22/Un-Corporate#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "openai": "^6.42.0"
+  }
+}
