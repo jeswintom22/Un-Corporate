@@ -12,3 +12,4 @@ node_modules/
 # Operating System Files
 .DS_Store
 Thumbs.db
+/node_modules/
