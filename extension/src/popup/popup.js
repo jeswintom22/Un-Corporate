@@ -1,6 +1,16 @@
 import browserApi from "../shared/browser.js";
 import { MESSAGES } from "../shared/messages.js";
 
+const POLL_INTERVAL_MS = 500;
+
+const RUNNING_STATUSES = new Set([
+  "EXTRACTING",
+  "CHUNKING",
+  "DETECTING",
+  "EXPLAINING",
+  "RENDERING",
+]);
+
 const el = {
   statusText: document.getElementById("statusText"),
   progressWrap: document.getElementById("progressWrap"),
@@ -17,12 +27,22 @@ const el = {
   modelText: document.getElementById("modelText"),
 };
 
+let pollTimer = null;
+let pollInFlight = false;
+
 async function callBackground(type, payload = {}) {
-  return browserApi.runtime.sendMessage({ type, payload });
+  return browserApi.runtime.sendMessage({
+    type,
+    payload,
+  });
 }
 
 function toggle(elRef, visible) {
   elRef.classList.toggle("hidden", !visible);
+}
+
+function isRunningStatus(status) {
+  return RUNNING_STATUSES.has(status);
 }
 
 function renderSummary(summary) {
@@ -37,33 +57,65 @@ function renderSummary(summary) {
 
   for (const text of values) {
     const badge = document.createElement("span");
+
     badge.className = "pixel-badge";
     badge.textContent = text;
+
     el.summaryWrap.appendChild(badge);
   }
 }
 
 function renderState(state) {
   const status = state?.status || "IDLE";
-  const progress = state?.progress || { current: 0, total: 0, message: "READY TO GET NOSY" };
 
-  el.statusText.textContent = progress.message || "READY TO GET NOSY";
-  toggle(el.progressWrap, ["EXTRACTING", "CHUNKING", "DETECTING", "EXPLAINING", "RENDERING"].includes(status));
+  const progress = state?.progress || {
+    current: 0,
+    total: 0,
+    message: "READY TO GET NOSY",
+  };
 
-  const total = progress.total || 0;
-  const current = progress.current || 0;
-  const percent = total > 0 ? Math.round((current / total) * 100) : 0;
-  el.progressBar.style.width = `${percent}%`;
-  el.progressNumbers.textContent = `${current} / ${total}`;
+  el.statusText.textContent =
+    progress.message || "READY TO GET NOSY";
 
+  const isRunning = isRunningStatus(status);
   const isComplete = status === "COMPLETE";
-  const isRunning = ["EXTRACTING", "CHUNKING", "DETECTING", "EXPLAINING", "RENDERING"].includes(status);
 
-  toggle(el.scanBtn, !isRunning && !isComplete);
+  toggle(el.progressWrap, isRunning);
+
+  const total = Number(progress.total) || 0;
+  const current = Number(progress.current) || 0;
+
+  const percent =
+    total > 0
+      ? Math.min(
+          100,
+          Math.round((current / total) * 100)
+        )
+      : 0;
+
+  el.progressBar.style.width = `${percent}%`;
+
+  el.progressNumbers.textContent =
+    total > 0
+      ? `${current} / ${total}`
+      : status;
+
+  toggle(
+    el.scanBtn,
+    !isRunning && !isComplete
+  );
+
   toggle(el.cancelBtn, isRunning);
   toggle(el.openBtn, isComplete);
   toggle(el.rescanBtn, isComplete);
-  toggle(el.clearBtn, isComplete || status === "ERROR" || status === "CANCELLED");
+
+  toggle(
+    el.clearBtn,
+    isComplete ||
+      status === "ERROR" ||
+      status === "CANCELLED"
+  );
+
   toggle(el.summaryWrap, isComplete);
 
   if (isComplete) {
@@ -71,82 +123,270 @@ function renderState(state) {
   }
 }
 
+function stopPolling() {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+async function pollScanState() {
+  if (pollInFlight) {
+    return;
+  }
+
+  pollInFlight = true;
+
+  try {
+    const stateResult = await callBackground(
+      MESSAGES.GET_TAB_SCAN_STATE
+    );
+
+    if (!stateResult?.ok) {
+      stopPolling();
+
+      el.statusText.textContent =
+        stateResult?.error?.message ||
+        "INTERNAL EXTENSION ERROR.";
+
+      return;
+    }
+
+    const state = stateResult.state;
+
+    renderState(state);
+
+    if (!isRunningStatus(state?.status)) {
+      stopPolling();
+    }
+  } catch {
+    stopPolling();
+
+    el.statusText.textContent =
+      "INTERNAL EXTENSION ERROR.";
+  } finally {
+    pollInFlight = false;
+  }
+}
+
+function startPolling() {
+  stopPolling();
+
+  pollScanState();
+
+  pollTimer = setInterval(
+    pollScanState,
+    POLL_INTERVAL_MS
+  );
+}
+
 async function maybeConfirmPrivacyWarning() {
-  const warningState = await callBackground(MESSAGES.GET_PRIVACY_WARNING_STATE);
-  if (!warningState?.ok || warningState.acknowledged) {
+  const warningState = await callBackground(
+    MESSAGES.GET_PRIVACY_WARNING_STATE
+  );
+
+  if (
+    !warningState?.ok ||
+    warningState.acknowledged
+  ) {
     return true;
   }
 
-  const providerResponse = await callBackground(MESSAGES.GET_PROVIDER_SETTINGS);
-  const provider = providerResponse?.settings?.provider || "your provider";
+  const providerResponse = await callBackground(
+    MESSAGES.GET_PROVIDER_SETTINGS
+  );
+
+  const provider =
+    providerResponse?.settings?.provider ||
+    "your provider";
 
   const accepted = confirm(
-    `SEND PAGE TEXT TO ${provider.toUpperCase()}?\n\nUn-Corporate will extract visible document text and send it to ${provider} using your API key.\n\nDon't scan sensitive documents unless you are allowed to send them to that provider.`
+    `SEND PAGE TEXT TO ${provider.toUpperCase()}?\n\n` +
+      `Un-Corporate will extract visible document text ` +
+      `and send it to ${provider} using your API key.\n\n` +
+      `Don't scan sensitive documents unless you are ` +
+      `allowed to send them to that provider.`
   );
 
   if (!accepted) {
     return false;
   }
 
-  await callBackground(MESSAGES.SET_PRIVACY_WARNING_STATE, { acknowledged: true });
+  await callBackground(
+    MESSAGES.SET_PRIVACY_WARNING_STATE,
+    {
+      acknowledged: true,
+    }
+  );
+
   return true;
 }
 
-async function refresh() {
-  const settingsResult = await callBackground(MESSAGES.GET_PROVIDER_SETTINGS);
-  if (settingsResult?.ok) {
-    el.providerText.textContent = (settingsResult.settings.provider || "openai").toUpperCase();
-    el.modelText.textContent = settingsResult.settings.model || "-";
+async function refreshSettings() {
+  const settingsResult = await callBackground(
+    MESSAGES.GET_PROVIDER_SETTINGS
+  );
+
+  if (!settingsResult?.ok) {
+    return;
   }
 
-  const stateResult = await callBackground(MESSAGES.GET_TAB_SCAN_STATE);
-  if (stateResult?.ok) {
-    renderState(stateResult.state);
+  el.providerText.textContent = (
+    settingsResult.settings.provider ||
+    "openai"
+  ).toUpperCase();
+
+  el.modelText.textContent =
+    settingsResult.settings.model || "-";
+}
+
+async function refreshState() {
+  const stateResult = await callBackground(
+    MESSAGES.GET_TAB_SCAN_STATE
+  );
+
+  if (!stateResult?.ok) {
+    el.statusText.textContent =
+      stateResult?.error?.message ||
+      "INTERNAL EXTENSION ERROR.";
+
+    return null;
+  }
+
+  renderState(stateResult.state);
+
+  return stateResult.state;
+}
+
+async function initializePopup() {
+  await refreshSettings();
+
+  const state = await refreshState();
+
+  if (isRunningStatus(state?.status)) {
+    startPolling();
   }
 }
 
-el.scanBtn.addEventListener("click", async () => {
-  const allowed = await maybeConfirmPrivacyWarning();
-  if (!allowed) {
-    return;
+el.scanBtn.addEventListener(
+  "click",
+  async () => {
+    const allowed =
+      await maybeConfirmPrivacyWarning();
+
+    if (!allowed) {
+      return;
+    }
+
+    const start = await callBackground(
+      MESSAGES.START_SCAN
+    );
+
+    if (!start?.ok) {
+      el.statusText.textContent =
+        start?.error?.message ||
+        "THE ROBOT SAID NOPE.";
+
+      return;
+    }
+
+    renderState(start.state);
+    startPolling();
   }
+);
 
-  const start = await callBackground(MESSAGES.START_SCAN);
-  if (!start?.ok) {
-    el.statusText.textContent = start?.error?.message || "THE ROBOT SAID NOPE.";
-    return;
+el.cancelBtn.addEventListener(
+  "click",
+  async () => {
+    stopPolling();
+
+    const result = await callBackground(
+      MESSAGES.CANCEL_SCAN
+    );
+
+    if (result?.ok) {
+      renderState(result.state);
+      return;
+    }
+
+    el.statusText.textContent =
+      result?.error?.message ||
+      "COULD NOT CANCEL SCAN.";
   }
+);
 
-  renderState(start.state);
-  await refresh();
-});
+el.openBtn.addEventListener(
+  "click",
+  async () => {
+    const result = await callBackground(
+      MESSAGES.OPEN_SIDEBAR
+    );
 
-el.cancelBtn.addEventListener("click", async () => {
-  await callBackground(MESSAGES.CANCEL_SCAN);
-  await refresh();
-});
-
-el.openBtn.addEventListener("click", async () => {
-  await callBackground(MESSAGES.OPEN_SIDEBAR);
-});
-
-el.rescanBtn.addEventListener("click", async () => {
-  const allowed = await maybeConfirmPrivacyWarning();
-  if (!allowed) {
-    return;
+    if (!result?.ok) {
+      el.statusText.textContent =
+        result?.error?.message ||
+        "COULD NOT OPEN FINDINGS.";
+    }
   }
+);
 
-  await callBackground(MESSAGES.START_SCAN);
-  await refresh();
-});
+el.rescanBtn.addEventListener(
+  "click",
+  async () => {
+    const allowed =
+      await maybeConfirmPrivacyWarning();
 
-el.clearBtn.addEventListener("click", async () => {
-  await callBackground(MESSAGES.CLEAR_SCAN);
-  await refresh();
-});
+    if (!allowed) {
+      return;
+    }
 
-el.settingsBtn.addEventListener("click", () => {
-  browserApi.runtime.openOptionsPage();
-});
+    const start = await callBackground(
+      MESSAGES.START_SCAN
+    );
 
-refresh();
+    if (!start?.ok) {
+      el.statusText.textContent =
+        start?.error?.message ||
+        "COULD NOT START SCAN.";
+
+      return;
+    }
+
+    renderState(start.state);
+    startPolling();
+  }
+);
+
+el.clearBtn.addEventListener(
+  "click",
+  async () => {
+    stopPolling();
+
+    const result = await callBackground(
+      MESSAGES.CLEAR_SCAN
+    );
+
+    if (result?.ok) {
+      renderState(result.state);
+      return;
+    }
+
+    el.statusText.textContent =
+      result?.error?.message ||
+      "COULD NOT CLEAR SCAN.";
+  }
+);
+
+el.settingsBtn.addEventListener(
+  "click",
+  () => {
+    browserApi.runtime.openOptionsPage();
+  }
+);
+
+window.addEventListener(
+  "unload",
+  stopPolling
+);
+
+initializePopup();
