@@ -1,0 +1,4 @@
+No bundled third-party font file is currently included.
+
+V1 uses local monospace fallbacks and a local alias for the display stack.
+If a redistributable pixel font is added later, include its full license text here.

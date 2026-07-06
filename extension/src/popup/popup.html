@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Un-Corporate</title>
+    <link rel="stylesheet" href="../ui/tokens.css" />
+    <link rel="stylesheet" href="../ui/pixel-components.css" />
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body class="uc-theme popup-root">
+    <main class="pixel-panel popup-shell">
+      <header class="popup-header">
+        <h1>UN-CORPORATE</h1>
+        <p>corporate speak detector</p>
+      </header>
+
+      <section class="pixel-card">
+        <div class="label">PAGE STATUS</div>
+        <div id="statusText" class="status-text">READY TO GET NOSY</div>
+
+        <div id="progressWrap" class="hidden">
+          <div class="pixel-progress"><span id="progressBar"></span></div>
+          <div id="progressNumbers" class="tiny-text">0 / 0</div>
+        </div>
+
+        <div id="summaryWrap" class="summary hidden"></div>
+
+        <div class="actions">
+          <button id="scanBtn" class="pixel-button pixel-button-primary">SCAN THIS PAGE</button>
+          <button id="cancelBtn" class="pixel-button hidden">CANCEL</button>
+          <button id="openBtn" class="pixel-button hidden">OPEN FINDINGS</button>
+          <button id="rescanBtn" class="pixel-button hidden">RESCAN</button>
+          <button id="clearBtn" class="pixel-button pixel-button-danger hidden">CLEAR</button>
+        </div>
+      </section>
+
+      <hr class="pixel-divider" />
+
+      <section class="pixel-card provider-card">
+        <div><span class="label">PROVIDER</span><span id="providerText">OpenAI</span></div>
+        <div><span class="label">MODEL</span><span id="modelText">-</span></div>
+        <button id="settingsBtn" class="pixel-button">SETTINGS</button>
+      </section>
+
+      <footer class="tiny-text">AI explanation, not legal advice.</footer>
+    </main>
+
+    <script type="module" src="./popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+:root {
+  --font-display: "PixelDisplay", "Courier New", monospace;
+  --font-body: ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  --uc-bg: #f4ecd8;
+  --uc-panel: #fff6e8;
+  --uc-panel-alt: #f9e5bc;
+  --uc-text: #1d140f;
+  --uc-text-muted: #5f5249;
+  --uc-border: #1d140f;
+  --uc-accent: #0f74d7;
+
+  --uc-info: #2a7f62;
+  --uc-low: #5d8d31;
+  --uc-medium: #b66c00;
+  --uc-high: #ad1f1f;
+
+  --uc-shadow-color: #1d140f;
+  --uc-shadow-color-soft: #7b6f63;
+  --uc-shadow-offset: 3px;
+
+  --uc-space-1: 6px;
+  --uc-space-2: 10px;
+  --uc-space-3: 14px;
+  --uc-space-4: 18px;
+
+  --uc-size-xs: 11px;
+  --uc-size-sm: 12px;
+  --uc-size-md: 14px;
+  --uc-size-lg: 16px;
+  --uc-size-xl: 20px;
+
+  --uc-z-sidebar: 2147483000;
+  --uc-motion-fast: 120ms;
+  --uc-motion-mid: 180ms;
+}
+
+@font-face {
+  font-family: "PixelDisplay";
+  src: local("Courier New");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --uc-motion-fast: 0ms;
+    --uc-motion-mid: 0ms;
+  }
+}

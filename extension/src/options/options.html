@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Un-Corporate Settings</title>
+    <link rel="stylesheet" href="../ui/tokens.css" />
+    <link rel="stylesheet" href="../ui/pixel-components.css" />
+    <link rel="stylesheet" href="./options.css" />
+  </head>
+  <body class="uc-theme">
+    <main class="pixel-panel page-shell">
+      <header>
+        <h1>UN-CORPORATE // SETUP.EXE</h1>
+        <p>Bring ur own robot key.</p>
+      </header>
+
+      <section class="pixel-card stack">
+        <p>Un-Corporate uses your AI provider directly. Page text does not pass through our server.</p>
+
+        <label>
+          <span class="label">PROVIDER</span>
+          <select id="provider" class="pixel-select">
+            <option value="openai">OpenAI</option>
+          </select>
+        </label>
+
+        <label>
+          <span class="label">API KEY</span>
+          <div class="row">
+            <input id="apiKey" class="pixel-input" type="password" autocomplete="off" />
+            <button id="toggleApiKey" class="pixel-button" type="button">SHOW</button>
+          </div>
+        </label>
+
+        <fieldset class="stack">
+          <legend class="label">KEY STORAGE</legend>
+          <label class="row-inline"><input type="radio" name="storageMode" value="local" checked /> KEEP ON THIS BROWSER</label>
+          <label class="row-inline"><input type="radio" name="storageMode" value="session" /> FOR THIS BROWSER SESSION</label>
+        </fieldset>
+
+        <label>
+          <span class="label">MODEL</span>
+          <input id="model" class="pixel-input" type="text" value="gpt-4.1-mini" />
+        </label>
+
+        <div class="row">
+          <button id="testBtn" class="pixel-button" type="button">TEST CONNECTION</button>
+          <button id="saveBtn" class="pixel-button pixel-button-primary" type="button">SAVE SETTINGS</button>
+          <button id="deleteBtn" class="pixel-button pixel-button-danger" type="button">DELETE API KEY</button>
+        </div>
+
+        <div id="status" class="status">STATUS: READY.</div>
+      </section>
+
+      <footer class="small-note">
+        Your API key is stored in this browser and sent only to your configured AI provider.
+      </footer>
+    </main>
+
+    <script type="module" src="./options.js"></script>
+  </body>
+</html>

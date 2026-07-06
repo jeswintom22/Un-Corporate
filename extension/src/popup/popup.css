@@ -1,0 +1,65 @@
+body.popup-root {
+  width: 380px;
+}
+
+.popup-shell {
+  display: grid;
+  gap: var(--uc-space-3);
+}
+
+.popup-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  font-size: var(--uc-size-xl);
+}
+
+.popup-header p {
+  margin: 4px 0 0;
+  text-transform: uppercase;
+  font-size: var(--uc-size-xs);
+  color: var(--uc-text-muted);
+}
+
+.label {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--uc-size-xs);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.status-text {
+  font-size: var(--uc-size-md);
+  margin-bottom: var(--uc-space-2);
+}
+
+.actions {
+  display: grid;
+  gap: var(--uc-space-2);
+}
+
+.tiny-text {
+  font-size: var(--uc-size-xs);
+  color: var(--uc-text-muted);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--uc-space-1);
+  margin-bottom: var(--uc-space-2);
+}
+
+.summary .pixel-badge {
+  justify-content: flex-start;
+}
+
+.provider-card {
+  display: grid;
+  gap: var(--uc-space-2);
+}
+
+.hidden {
+  display: none;
+}

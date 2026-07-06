@@ -5,7 +5,8 @@
   "description": "An AI-powered translator that turns 50 pages of corporate legalese and sketchy terms of service into absolute real talk.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "node scripts/build.js",
+    "build:extension": "node scripts/build.js"
   },
   "repository": {
     "type": "git",
@@ -22,5 +23,8 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "openai": "^6.42.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12"
   }
 }

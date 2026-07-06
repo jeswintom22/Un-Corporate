@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 /npm-debug.log*
+package-lock.json
 
 # Environment variables & API Keys
 .env
@@ -13,3 +14,9 @@ node_modules/
 .DS_Store
 Thumbs.db
 /node_modules/
+
+# Build output
+dist/
+
+# Editor
+.vscode/

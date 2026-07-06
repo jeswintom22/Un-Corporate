@@ -1,0 +1,52 @@
+.page-shell {
+  max-width: 820px;
+  margin: 24px auto;
+  display: grid;
+  gap: var(--uc-space-3);
+}
+
+h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+}
+
+p {
+  margin: 0;
+}
+
+.stack {
+  display: grid;
+  gap: var(--uc-space-3);
+}
+
+.row {
+  display: flex;
+  gap: var(--uc-space-2);
+  flex-wrap: wrap;
+}
+
+.row-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--uc-space-2);
+}
+
+.label {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--uc-size-xs);
+  margin-bottom: 4px;
+}
+
+.status {
+  border: 2px solid var(--uc-border);
+  background: #fff;
+  padding: var(--uc-space-2);
+  font-family: var(--font-display);
+}
+
+.small-note {
+  font-size: var(--uc-size-sm);
+  color: var(--uc-text-muted);
+}
