@@ -1,12 +1,15 @@
-:root {
+:root,
+:host {
   --font-display: "PixelDisplay", "Courier New", monospace;
   --font-body: ui-monospace, "SFMono-Regular", Consolas, monospace;
 
   --uc-bg: #f4ecd8;
   --uc-panel: #fff6e8;
   --uc-panel-alt: #f9e5bc;
+
   --uc-text: #1d140f;
   --uc-text-muted: #5f5249;
+
   --uc-border: #1d140f;
   --uc-accent: #0f74d7;
 
@@ -31,6 +34,7 @@
   --uc-size-xl: 20px;
 
   --uc-z-sidebar: 2147483000;
+
   --uc-motion-fast: 120ms;
   --uc-motion-mid: 180ms;
 }
@@ -41,7 +45,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root {
+  :root,
+  :host {
     --uc-motion-fast: 0ms;
     --uc-motion-mid: 0ms;
   }
