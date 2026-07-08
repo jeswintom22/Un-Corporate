@@ -32,3 +32,4 @@ export const SCAN_PHASES = {
 
 export const CHUNK_CHAR_BUDGET = 5500;
 export const CHUNK_CONTEXT_LINES = 2;
+export const EXPLANATION_BATCH_SIZE = 5;

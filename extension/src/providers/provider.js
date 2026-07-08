@@ -7,7 +7,9 @@ export class AIProvider {
     throw new Error("detectFindings must be implemented by adapter.");
   }
 
-  async explainFinding() {
-    throw new Error("explainFinding must be implemented by adapter.");
-  }
+  async explainFindings() {
+    throw new Error(
+        "explainFindings must be implemented by adapter."
+    );
+}
 }

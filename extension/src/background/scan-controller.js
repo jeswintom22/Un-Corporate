@@ -14,15 +14,13 @@ import {
 import { createProvider } from "../providers/provider-factory.js";
 import { buildChunks } from "../analysis/chunker.js";
 import { runAnalysis } from "../analysis/analyzer.js";
-
-const tabScanState = new Map();
-
-const EMPTY_SUMMARY = Object.freeze({
-  high: 0,
-  medium: 0,
-  low: 0,
-  info: 0,
-});
+import {
+  EMPTY_SUMMARY,
+  createIdleScanState,
+  getTabScanState,
+  setTabScanState,
+  replaceTabScanState,
+} from "./scan-state.js";
 
 const RUNNING_PHASES = new Set([
   SCAN_PHASES.EXTRACTING,
@@ -37,49 +35,6 @@ function makeScanId() {
     `scan_${Date.now()}_` +
     Math.random().toString(36).slice(2, 8)
   );
-}
-
-function createIdleState(tabId) {
-  return {
-    tabId,
-    scanId: null,
-    status: SCAN_PHASES.IDLE,
-
-    progress: {
-      phase: SCAN_PHASES.IDLE,
-      current: 0,
-      total: 0,
-      message: "READY TO GET NOSY",
-    },
-
-    summary: {
-      ...EMPTY_SUMMARY,
-    },
-
-    findings: [],
-    error: null,
-  };
-}
-
-export function getTabScanState(tabId) {
-  return (
-    tabScanState.get(tabId) ||
-    createIdleState(tabId)
-  );
-}
-
-function setTabScanState(tabId, patch) {
-  const current = getTabScanState(tabId);
-
-  const nextState = {
-    ...current,
-    ...patch,
-    tabId,
-  };
-
-  tabScanState.set(tabId, nextState);
-
-  return nextState;
 }
 
 function summarizeFindings(findings) {
@@ -118,7 +73,6 @@ async function ensureContentInjected(tabId) {
     target: {
       tabId,
     },
-
     files: [
       "bundles/content.bundle.js",
     ],
@@ -132,8 +86,8 @@ async function sendToTab(tabId, message) {
   );
 }
 
-function isScanActive(tabId, scanId) {
-  const state = getTabScanState(tabId);
+async function isScanActive(tabId, scanId) {
+  const state = await getTabScanState(tabId);
 
   return (
     state.scanId === scanId &&
@@ -141,29 +95,34 @@ function isScanActive(tabId, scanId) {
   );
 }
 
-function updateProgress(
+async function updateProgress(
   tabId,
   scanId,
   progress,
   status
 ) {
-  if (!isScanActive(tabId, scanId)) {
+  const active = await isScanActive(
+    tabId,
+    scanId
+  );
+
+  if (!active) {
     return;
   }
 
-  const current = getTabScanState(tabId);
+  const current =
+    await getTabScanState(tabId);
 
   const nextStatus =
     status || current.status;
 
-  setTabScanState(tabId, {
+  await setTabScanState(tabId, {
     status: nextStatus,
     progress,
   });
 
   sendToTab(tabId, {
     type: MESSAGES.SCAN_PROGRESS,
-
     payload: {
       scanId,
       status: nextStatus,
@@ -172,9 +131,11 @@ function updateProgress(
   }).catch(() => {});
 }
 
+export { getTabScanState };
+
 export async function startScan(tabId) {
   const existing =
-    getTabScanState(tabId);
+    await getTabScanState(tabId);
 
   if (RUNNING_PHASES.has(existing.status)) {
     throw new AppError(
@@ -185,7 +146,8 @@ export async function startScan(tabId) {
 
   const scanId = makeScanId();
 
-  setTabScanState(tabId, {
+  await replaceTabScanState(tabId, {
+    tabId,
     scanId,
 
     status: SCAN_PHASES.EXTRACTING,
@@ -210,7 +172,9 @@ export async function startScan(tabId) {
   try {
     await ensureContentInjected(tabId);
 
-    if (!isScanActive(tabId, scanId)) {
+    if (
+      !(await isScanActive(tabId, scanId))
+    ) {
       return getTabScanState(tabId);
     }
 
@@ -226,11 +190,13 @@ export async function startScan(tabId) {
       apiKey
     );
 
-    if (!isScanActive(tabId, scanId)) {
+    if (
+      !(await isScanActive(tabId, scanId))
+    ) {
       return getTabScanState(tabId);
     }
 
-    updateProgress(
+    await updateProgress(
       tabId,
       scanId,
       {
@@ -247,14 +213,15 @@ export async function startScan(tabId) {
       tabId,
       {
         type: MESSAGES.EXTRACT_DOCUMENT,
-
         payload: {
           scanId,
         },
       }
     );
 
-    if (!isScanActive(tabId, scanId)) {
+    if (
+      !(await isScanActive(tabId, scanId))
+    ) {
       return getTabScanState(tabId);
     }
 
@@ -280,7 +247,7 @@ export async function startScan(tabId) {
       );
     }
 
-    updateProgress(
+    await updateProgress(
       tabId,
       scanId,
       {
@@ -296,33 +263,52 @@ export async function startScan(tabId) {
     const chunking =
       buildChunks(documentData);
 
-    if (!isScanActive(tabId, scanId)) {
+    if (
+      !(await isScanActive(tabId, scanId))
+    ) {
       return getTabScanState(tabId);
     }
 
+    let stale = false;
+
+    const staleCheck = async () => {
+      stale = !(
+        await isScanActive(tabId, scanId)
+      );
+
+      return stale;
+    };
+
+    /*
+     * runAnalysis expects a synchronous stale callback.
+     *
+     * Session storage is asynchronous, so progress updates
+     * refresh the local stale flag before analysis work
+     * continues.
+     */
     const analysisResult =
       await runAnalysis({
         documentData,
-
         chunks: chunking.chunks,
-
         provider,
 
-        onProgress: (progress) => {
-          updateProgress(
+        onProgress: async (progress) => {
+          await updateProgress(
             tabId,
             scanId,
             progress
           );
+
+          await staleCheck();
         },
 
-        isStale: () =>
-          !isScanActive(tabId, scanId),
+        isStale: () => stale,
       });
 
     if (
       analysisResult.cancelled ||
-      !isScanActive(tabId, scanId)
+      stale ||
+      !(await isScanActive(tabId, scanId))
     ) {
       return getTabScanState(tabId);
     }
@@ -333,26 +319,27 @@ export async function startScan(tabId) {
     const summary =
       summarizeFindings(findings);
 
-    /*
-     * Canonical scan result is committed to the
-     * background before rendering.
-     *
-     * Content scripts only receive a render snapshot.
-     */
-    setTabScanState(tabId, {
+    await setTabScanState(tabId, {
       status: SCAN_PHASES.RENDERING,
 
       progress: {
         phase: SCAN_PHASES.RENDERING,
         current: 0,
         total: 0,
-        message: "PAINTING THE SUS BITS...",
+        message:
+          "PAINTING THE SUS BITS...",
       },
 
       findings,
       summary,
       error: null,
     });
+
+    if (
+      !(await isScanActive(tabId, scanId))
+    ) {
+      return getTabScanState(tabId);
+    }
 
     await sendToTab(tabId, {
       type: MESSAGES.APPLY_FINDINGS,
@@ -364,13 +351,14 @@ export async function startScan(tabId) {
       },
     });
 
-    if (!isScanActive(tabId, scanId)) {
+    if (
+      !(await isScanActive(tabId, scanId))
+    ) {
       return getTabScanState(tabId);
     }
 
-    const finalState = setTabScanState(
-      tabId,
-      {
+    const finalState =
+      await setTabScanState(tabId, {
         status: SCAN_PHASES.COMPLETE,
 
         progress: {
@@ -382,8 +370,7 @@ export async function startScan(tabId) {
         },
 
         error: null,
-      }
-    );
+      });
 
     sendToTab(tabId, {
       type: MESSAGES.SCAN_COMPLETE,
@@ -399,19 +386,19 @@ export async function startScan(tabId) {
 
     return finalState;
   } catch (error) {
-    /*
-     * A cancelled or replaced scan must never overwrite
-     * the newer authoritative state with ERROR.
-     */
-    if (!isScanActive(tabId, scanId)) {
+    const active = await isScanActive(
+      tabId,
+      scanId
+    );
+
+    if (!active) {
       return getTabScanState(tabId);
     }
 
     const appError = toAppError(error);
 
-    const failedState = setTabScanState(
-      tabId,
-      {
+    const failedState =
+      await setTabScanState(tabId, {
         status: SCAN_PHASES.ERROR,
 
         progress: {
@@ -422,8 +409,7 @@ export async function startScan(tabId) {
         },
 
         error: toUserError(appError),
-      }
-    );
+      });
 
     sendToTab(tabId, {
       type: MESSAGES.SCAN_ERROR,
@@ -440,7 +426,7 @@ export async function startScan(tabId) {
 
 export async function cancelScan(tabId) {
   const current =
-    getTabScanState(tabId);
+    await getTabScanState(tabId);
 
   if (
     !current.scanId ||
@@ -449,14 +435,10 @@ export async function cancelScan(tabId) {
     return current;
   }
 
-  /*
-   * scanId is invalidated.
-   *
-   * Any running analyzer/provider continuation now
-   * fails isScanActive().
-   */
   const cancelledState =
-    setTabScanState(tabId, {
+    await replaceTabScanState(tabId, {
+      ...current,
+
       scanId: null,
 
       status: SCAN_PHASES.CANCELLED,
@@ -490,9 +472,9 @@ export async function cancelScan(tabId) {
 
 export async function clearScan(tabId) {
   const idleState =
-    createIdleState(tabId);
+    createIdleScanState(tabId);
 
-  tabScanState.set(
+  await replaceTabScanState(
     tabId,
     idleState
   );
