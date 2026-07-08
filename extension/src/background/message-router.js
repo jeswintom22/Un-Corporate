@@ -1,3 +1,4 @@
+import browserApi from "../shared/browser.js";
 import { MESSAGES } from "../shared/messages.js";
 import {
   getProviderSettings,
@@ -18,7 +19,7 @@ import {
 } from "./scan-controller.js";
 
 async function withActiveTab(sendResponse, handler) {
-  const [tab] = await chrome.tabs.query({
+  const [tab] = await browserApi.tabs.query({
     active: true,
     currentWindow: true,
   });
@@ -50,14 +51,12 @@ async function withActiveTab(sendResponse, handler) {
   }
 }
 
-export function registerMessageRouter(browserApi) {
+export function registerMessageRouter() {
   browserApi.runtime.onMessage.addListener(
     (message, sender, sendResponse) => {
       const type = message?.type;
 
-      if (
-        type === MESSAGES.GET_PROVIDER_SETTINGS
-      ) {
+      if (type === MESSAGES.GET_PROVIDER_SETTINGS) {
         getProviderSettings()
           .then((settings) =>
             sendResponse({
@@ -75,9 +74,7 @@ export function registerMessageRouter(browserApi) {
         return true;
       }
 
-      if (
-        type === MESSAGES.SAVE_PROVIDER_SETTINGS
-      ) {
+      if (type === MESSAGES.SAVE_PROVIDER_SETTINGS) {
         const { settings, apiKey } =
           message.payload || {};
 
@@ -110,9 +107,7 @@ export function registerMessageRouter(browserApi) {
         return true;
       }
 
-      if (
-        type === MESSAGES.DELETE_API_KEY
-      ) {
+      if (type === MESSAGES.DELETE_API_KEY) {
         deleteApiKey()
           .then(() =>
             sendResponse({
@@ -129,15 +124,12 @@ export function registerMessageRouter(browserApi) {
         return true;
       }
 
-      if (
-        type === MESSAGES.TEST_PROVIDER
-      ) {
+      if (type === MESSAGES.TEST_PROVIDER) {
         (async () => {
           const settings =
             await getProviderSettings();
 
-          const payload =
-            message.payload || {};
+          const payload = message.payload || {};
 
           const settingsToUse = {
             ...settings,
@@ -175,7 +167,8 @@ export function registerMessageRouter(browserApi) {
       }
 
       if (
-        type === MESSAGES.GET_PRIVACY_WARNING_STATE
+        type ===
+        MESSAGES.GET_PRIVACY_WARNING_STATE
       ) {
         getPrivacyWarningAck()
           .then((acknowledged) =>
@@ -195,7 +188,8 @@ export function registerMessageRouter(browserApi) {
       }
 
       if (
-        type === MESSAGES.SET_PRIVACY_WARNING_STATE
+        type ===
+        MESSAGES.SET_PRIVACY_WARNING_STATE
       ) {
         setPrivacyWarningAck(
           Boolean(
@@ -217,88 +211,51 @@ export function registerMessageRouter(browserApi) {
         return true;
       }
 
-      if (
-        type === MESSAGES.GET_TAB_SCAN_STATE
-      ) {
-        withActiveTab(
-          sendResponse,
-          async (tabId) => {
-            const state =
-              await getTabScanState(tabId);
-
-            return {
-              state,
-            };
-          }
-        );
-
-        return true;
-      }
-
-      if (
-        type === MESSAGES.START_SCAN
-      ) {
-        withActiveTab(
-          sendResponse,
-          async (tabId) => {
-            /*
-             * Do not await the full scan pipeline.
-             *
-             * START_SCAN returns immediately after the
-             * scan has been scheduled.
-             */
-            const scanPromise =
-              startScan(tabId);
-
-            scanPromise.catch(() => {});
-
-            await new Promise((resolve) =>
-              setTimeout(resolve, 0)
-            );
-
-            const state =
-              await getTabScanState(tabId);
-
-            return {
-              state,
-            };
-          }
-        );
-
-        return true;
-      }
-
-      if (
-        type === MESSAGES.CANCEL_SCAN
-      ) {
+      if (type === MESSAGES.GET_TAB_SCAN_STATE) {
         withActiveTab(
           sendResponse,
           async (tabId) => ({
-            state:
-              await cancelScan(tabId),
+            state: await getTabScanState(tabId),
           })
         );
 
         return true;
       }
 
-      if (
-        type === MESSAGES.CLEAR_SCAN
-      ) {
+      if (type === MESSAGES.START_SCAN) {
         withActiveTab(
           sendResponse,
           async (tabId) => ({
-            state:
-              await clearScan(tabId),
+            state: await startScan(tabId),
           })
         );
 
         return true;
       }
 
-      if (
-        type === MESSAGES.OPEN_SIDEBAR
-      ) {
+      if (type === MESSAGES.CANCEL_SCAN) {
+        withActiveTab(
+          sendResponse,
+          async (tabId) => ({
+            state: await cancelScan(tabId),
+          })
+        );
+
+        return true;
+      }
+
+      if (type === MESSAGES.CLEAR_SCAN) {
+        withActiveTab(
+          sendResponse,
+          async (tabId) => ({
+            state: await clearScan(tabId),
+          })
+        );
+
+        return true;
+      }
+
+      if (type === MESSAGES.OPEN_SIDEBAR) {
         withActiveTab(
           sendResponse,
           async (tabId) => {
@@ -308,11 +265,8 @@ export function registerMessageRouter(browserApi) {
             await browserApi.tabs.sendMessage(
               tabId,
               {
-                type:
-                  MESSAGES.OPEN_SIDEBAR,
-
+                type: MESSAGES.OPEN_SIDEBAR,
                 payload: {
-                  scanId: state.scanId,
                   findings: state.findings,
                   summary: state.summary,
                   progress: state.progress,

@@ -1,7 +1,17 @@
-export const browserApi = globalThis.browser || globalThis.chrome;
+const rawBrowserApi =
+  globalThis.browser || globalThis.chrome;
 
-if (!browserApi) {
-  throw new Error("Browser extension APIs are unavailable in this context.");
+if (!rawBrowserApi) {
+  throw new Error(
+    "Browser extension APIs are unavailable in this context."
+  );
 }
+
+export const browserApi = {
+  runtime: rawBrowserApi.runtime,
+  storage: rawBrowserApi.storage,
+  tabs: rawBrowserApi.tabs,
+  scripting: rawBrowserApi.scripting,
+};
 
 export default browserApi;
